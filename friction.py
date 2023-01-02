@@ -45,15 +45,20 @@ def getRotate(cri_pos, pos):
         value += 360
     return value
 
-tri_pos = ((100, 700), (700, 700), (700, 200))
-mass = 0.2
-mu_s = 0.74
-mu_k = 0.57
+board_length = 0.564
+tri_degree = 20
+tri_theta = math.radians(tri_degree)
+tri_pos = [(100, 700), (700, 700), [0, 0]]
+tri_pos[2] = [tri_pos[1][0], tri_pos[1][1] - math.tan(tri_theta)*(tri_pos[1][0]-tri_pos[0][0])]
+rate = math.sqrt(math.pow(tri_pos[0][0]-tri_pos[1][0], 2) + math.pow(tri_pos[1][1]-tri_pos[2][1], 2))/board_length
+# rate = 1
+mass = 0.25
 gravity = 9.8
+mu_s = 0.3639702342
+mu_k = 0.1632653061
 r = getRotate(tri_pos[0], tri_pos[2])
 diagonal_length = math.sqrt(math.pow(box_length[0], 2) + math.pow(box_length[1], 2))
 diagonal_theta = math.atan(box_length[1] / box_length[0])
-tri_theta = math.atan((tri_pos[1][1] - tri_pos[2][1])/(tri_pos[1][0] - tri_pos[0][0]))
 box_rb_pos = [tri_pos[2][0], tri_pos[2][1]]
 stop = False
 acceleration = gravity*(math.sin(tri_theta) - mu_s*math.cos(tri_theta))
@@ -62,27 +67,59 @@ if acceleration <= 0:
 velocity = acceleration
 
 start_t = time.time()
+flag = True
 
 while not done:
     clock.tick(FPS)
     screen.fill(BLACK)
 
+    delta_time = time.time() - start_t
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             done = True
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_q:
+                tri_degree += 10
+            if event.key == pygame.K_w:
+                tri_degree += 1
+            if event.key == pygame.K_e:
+                tri_degree += 0.1
+            if event.key == pygame.K_r:
+                tri_degree += 0.01
+            if event.key == pygame.K_a:
+                tri_degree -= 10
+            if event.key == pygame.K_s:
+                tri_degree -= 1
+            if event.key == pygame.K_d:
+                tri_degree -= 0.1
+            if event.key == pygame.K_f:
+                tri_degree -= 0.01
+            if tri_degree <= 0:
+                tri_degree = 0
+            tri_theta = math.radians(tri_degree)
+            tri_pos[2] = [tri_pos[1][0], tri_pos[1][1] - math.tan(tri_theta)*(tri_pos[1][0]-tri_pos[0][0])]
+            r = getRotate(tri_pos[0], tri_pos[2])
+            box_rb_pos = [tri_pos[2][0], tri_pos[2][1]]
+            delta_time = 2
+            stop = True
 
-    if time.time() - start_t >= 0.01 and not stop:
-        start_t = time.time()
+    if delta_time >= 0.01 and not stop:
+        # start_t = time.time()
         if acceleration > 0:
             acceleration = gravity*(math.sin(tri_theta) - mu_k*math.cos(tri_theta))
         velocity += acceleration*0.01
         box_rb_pos[0] -= velocity*math.cos(tri_theta)
         box_rb_pos[1] += velocity*math.sin(tri_theta)
+        flag = True
     
     if box_rb_pos[0] - box_length[0]*math.cos(tri_theta) <= tri_pos[0][0]:
         stop = True
+        if flag:
+            print(delta_time)
+            flag = False
 
-    if stop and time.time() - start_t >= 1.5:
+    if stop and delta_time >= 1.5:
         stop = False
         box_rb_pos = [tri_pos[2][0], tri_pos[2][1]]
         acceleration = gravity*(math.sin(tri_theta) - mu_s*math.cos(tri_theta))
@@ -95,6 +132,9 @@ while not done:
     rotate_box = blitRotate(box, box_pos, (box_length[0]//2, box_length[1]//2), r)
     screen.blit(rotate_box[0], rotate_box[1])
     pygame.draw.polygon(screen, GRAY, tri_pos)
+
+    tri_degree_txt = font(30).render(f"tri_degree : {tri_degree:.2f}", True, WHITE)
+    screen.blit(tri_degree_txt, (0, 0))
 
     pygame.display.update()
 

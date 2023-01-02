@@ -1,3 +1,4 @@
+from functools import cache
 import pygame
 import math
 import time
@@ -15,53 +16,63 @@ screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 done = False
 
+@cache
 def font(size):
     return pygame.font.Font('./font/NotoSansKR-Medium.otf', size)
-def up_std_pos(pos):
+def right_std_pos(pos):
     return [pos[0] + 900, pos[1] + size[1]//2]
-def side_std_pos(pos):
+def left_std_pos(pos):
     return [pos[0] + 300, pos[1] + size[1]//2]
 
-circle_r = 10       # 구의 반지름
-mass = 0.2          # 구의 질량
-gravity = 98*100000 # 중력 가속도
-orbit_r = 290       # 끈의 길이
-theta = 0
-tangent_velocity = orbit_r*360  # 접선(순간) 속도 --> 끈의 길이 * 각속도
-angular_velocity = tangent_velocity / orbit_r   # 각속도
-side_theta = math.atan((mass*gravity)/(mass*math.pow(tangent_velocity, 2)/orbit_r))
-side_x = (orbit_r+circle_r)*math.cos(side_theta)
-side_y = (orbit_r+circle_r)*math.sin(side_theta)
+circle_r = 10
+mass = 0.02         # 구의 질량
+gravity = 9.8       # 중력 가속도
+orbit_r = 0.3       # 끈의 길이
+angular_velocity = math.radians(360*2)   # 각속도(rad/s)
+spin_theta = 0
+height_theta = math.atan((mass*gravity)/(mass*math.pow(angular_velocity, 2)*orbit_r)) # 직각 - (막대와 끈 사이의 각도)
+rate = 250 / orbit_r    # 실제 길이와 픽셀 수 사이의 비율
+
+side_x = orbit_r*math.cos(height_theta)*rate + circle_r*math.cos(height_theta)
+side_y = orbit_r*math.sin(height_theta)*rate + circle_r*math.sin(height_theta)
+
 start_t = time.time()
 
 while not done:
-    df = clock.tick(FPS)
+    clock.tick(FPS)
     screen.fill(BLACK)
+
+    try: # 일정한 속도로 프로그램 반복 실행
+        df = 1 / clock.get_fps()   # 프레임당 차지하는 시간(s)
+    except:
+        df = 1 / FPS
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             done = True
 
-    theta += angular_velocity * df / 1000
-    if theta >= 360:
-        theta -= 360
-        print(f"구의 주기 : {time.time() - start_t} 초")
+    spin_theta += math.degrees(angular_velocity) * df
+    if spin_theta >= 360:
+        spin_theta -= 360
         start_t = time.time()
     
-    circle_pos = (side_x*math.cos(math.radians(theta)), side_x*math.sin(math.radians(theta)))
-    pygame.draw.circle(screen, WHITE, up_std_pos(circle_pos), circle_r)
-    pygame.draw.line(screen, YELLOW, up_std_pos([0, 0]), up_std_pos(circle_pos), 2)
-    pygame.draw.circle(screen, GRAY, up_std_pos([0, 0]), 3)
+    up_circle_pos = (side_x*math.cos(math.radians(spin_theta)), side_x*math.sin(math.radians(spin_theta))) # 구의 위치(우)
+    pygame.draw.circle(screen, WHITE, right_std_pos(up_circle_pos), circle_r)
+    pygame.draw.line(screen, YELLOW, right_std_pos([0, 0]), right_std_pos(up_circle_pos), 2)
+    pygame.draw.circle(screen, GRAY, right_std_pos([0, 0]), 3)
 
-    circle_pos = (side_x*math.cos(math.radians(theta)), side_y)
-    if theta <= 180:
-        pygame.draw.line(screen, GRAY, side_std_pos([0, 0]), side_std_pos([0, 250]), 6)
-        pygame.draw.line(screen, YELLOW, side_std_pos([0, 0]), side_std_pos(circle_pos), 2)
-        pygame.draw.circle(screen, WHITE, side_std_pos(circle_pos), circle_r)
+    side_circle_pos = (side_x*math.cos(math.radians(spin_theta)), side_y) # 구의 위치(좌)
+    if spin_theta <= 180:
+        pygame.draw.line(screen, GRAY, left_std_pos([0, 0]), left_std_pos([0, 250]), 6)
+        pygame.draw.line(screen, YELLOW, left_std_pos([0, 0]), left_std_pos(side_circle_pos), 2)
+        pygame.draw.circle(screen, WHITE, left_std_pos(side_circle_pos), circle_r)
     else:
-        pygame.draw.circle(screen, WHITE, side_std_pos(circle_pos), circle_r)
-        pygame.draw.line(screen, YELLOW, side_std_pos([0, 0]), side_std_pos(circle_pos), 2)
-        pygame.draw.line(screen, GRAY, side_std_pos([0, 0]), side_std_pos([0, 250]), 6)
+        pygame.draw.circle(screen, WHITE, left_std_pos(side_circle_pos), circle_r)
+        pygame.draw.line(screen, YELLOW, left_std_pos([0, 0]), left_std_pos(side_circle_pos), 2)
+        pygame.draw.line(screen, GRAY, left_std_pos([0, 0]), left_std_pos([0, 250]), 6)
+
+    height_theta_txt = font(30).render(f"tri_degree : {90 - math.degrees(height_theta):.2f}", True, WHITE) # 축과 끈 사이 각도
+    screen.blit(height_theta_txt, (0, 0))
 
     pygame.display.update()
 
